@@ -3,6 +3,31 @@ name = "quivive"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+tokio  = { version = "1.0", features = ["rt-multi-thread", "macros", "time", "process"] }
+tracing-subscriber = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dashmap = "4.0.1"
+futures = "0.3"
+reqwest = "0.11"
+regex = "1.4.3"
+chrono = "0.4"
+itertools = "0.10.0"
+tracing = "0.1.23"
+rlua = "0.19.0"
+
+[dependencies.serenity]
+git = "https://github.com/serenity-rs/serenity"
+branch = "current"
+default-features = true
+features = ["model", "collector", "native_tls_backend"]
+
+[dependencies.sqlx]
+version = "0.5"
+default-features = false
+features = ["runtime-tokio-native-tls", "macros", "postgres", "uuid", "offline"]
+
+[target.'cfg(linux)'.dependencies.openssl]
+version = "0.10"
+features = ["vendored"]
