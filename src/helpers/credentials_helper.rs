@@ -14,14 +14,24 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- *  mod.rs */
+ *  credentials_helper.rs */
 
-pub mod botinfo;
-pub mod command_utils;
-pub mod credentials_helper;
-pub mod database_helper;
-pub mod delete_buffer;
-pub mod embed_store;
-pub mod mute_helper;
-pub mod permissions_helper;
-pub mod warn_helper;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs,
+    io::BufReader,
+};
+
+#[derive(Serialize, Deserialize)]
+pub struct Credentials {
+    pub bot_token: String,
+    pub default_prefix: String,
+    pub db_connection: String,
+}
+
+pub fn read_creds(path: String) -> Result<Credentials, Box<dyn std::error::Error + 'static>> {
+    let file = fs::File::open(path)?;
+    let reader = BufReader::new(file);
+    let info: Credentials = serde_json::from_reader(reader).unwrap();
+    Ok(info)
+}

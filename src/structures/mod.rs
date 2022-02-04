@@ -16,12 +16,28 @@
  *
  *  mod.rs */
 
-pub mod botinfo;
-pub mod command_utils;
-pub mod credentials_helper;
-pub mod database_helper;
-pub mod delete_buffer;
-pub mod embed_store;
-pub mod mute_helper;
-pub mod permissions_helper;
-pub mod warn_helper;
+pub mod cmd_data;
+pub mod commands;
+pub mod errors;
+
+use serde::Deserialize;
+use serenity::model::id::EmojiId;
+
+#[derive(Debug, Deserialize)]
+pub struct CommitResponse {
+    pub sha: String,
+    pub url: String
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct EmojiIdentifier {
+    pub animated: bool,
+    pub id: EmojiId,
+    pub name: String,
+}
+
+#[derive(Default, Debug)]
+pub struct SysInfo {
+    pub shard_latency: String,
+    pub memory: f32,
+}

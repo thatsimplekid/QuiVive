@@ -1,13 +1,38 @@
+/*  Qui Vive - A Discord bot to keep out the riff-raff
+ *  Copyright (C) 2022 Owen Flaherty
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published
+ *  by the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  main.rs */
+
+mod commands;
+mod handlers;
 mod helpers;
+//mod reactions;
+mod structures;
 
 use dashmap::DashMap;
+use helpers::{command_utils, database_helper};
 use reqwest::Client as Reqwest;
 use serenity::{client::bridge::gateway::GatewayIntents, http::Http, Client};
 use std::{
     collections::{HashMap, HashSet},
     env,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{atomic::AtomicBool, Arc}
 };
+use handlers::{event_handler::SerenityHandler, framework::get_framework};
+use structures::{cmd_data::*, errors::*};
 use tracing::{error, info};
 
 #[tokio::main]
@@ -20,16 +45,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (owners, bot_id) = match http.get_current_application_info().await {
         Ok(info) => {
             let mut owners = HashSet::new();
-            owners.insert(info.owners.id);
+            owners.insert(info.owner.id);
             (owners, info.id)
         },
-        Err(why) => panic!("Failed to access application info: {:?}", why),
+        Err(why) => panic!("Could not access application info: {:?}", why),
     };
     let pool = database_helper::obtain_db_pool(creds.db_connection).await?;
     let prefixes = database_helper::fetch_prefixes(&pool).await?;
     let reqwest_client = Reqwest::builder()
-        .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0")
-        .build()?;
+        .user_agent("Mozilla/5.0 (compatible; QuiVive/1.0.3; +http://qv.herty.xyz/bots").build()?;
     let mut pub_creds = HashMap::new();
     pub_creds.insert("default prefix".to_owned(), creds.default_prefix);
     let emergency_commands = command_utils::get_allowed_commands();
@@ -39,14 +63,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             run_loop: AtomicBool::new(true),
         })
         .intents({
-            GatewayIntents::GUILD_MEMBERS           |
-            GatewayIntents::GUILD_PRESENCES         |
-            GatewayIntents::GUILD_BANS              |
-            GatewayIntents::GUILD_EMOJIS            |
-            GatewayIntents::GUILD_MESSAGES          |
+            GatewayIntents::GUILDS |
+            GatewayIntents::GUILD_MEMBERS |
+            GatewayIntents::GUILD_PRESENCES |
+            GatewayIntents::GUILD_BANS |
+            GatewayIntents::GUILD_EMOJIS |
+            GatewayIntents::GUILD_MESSAGES |
             GatewayIntents::GUILD_MESSAGE_REACTIONS
         })
-        .cache_settings(|s| s.max_messages(300))
+        .cache_settings(|settings| settings.max_messages(300))
         .await
         .expect("Error creating client");
     {
@@ -60,11 +85,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         data.insert::<ReqwestClient>(Arc::new(reqwest_client));
         data.insert::<EmergencyCommands>(Arc::new(emergency_commands));
     }
-    let shard_manager = client.shard_manager.clone();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("Failed to register Cc handler");
-        shard_manager.lock().await.shutdown_all().await;
-    });
     if let Err(why) = client.start_shards(4).await {
         error!("Client error: {:?}", why);
     }
